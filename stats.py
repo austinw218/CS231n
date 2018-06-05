@@ -1,82 +1,29 @@
-from glob import glob
+# from glob import glob
 from PIL import Image
 import numpy as np
-import pandas as pd
+# import pandas as pd
 import matplotlib.pyplot as plt
 import random
 
 
 
 # Class for calculating various statistics for the perturbation arrays.
-class Perturbation_Stats:
+class Stats:
 
-    def __init__(self, path="."):
+    def __init__(self, file_name):
 
-        self.create_perturbations(path)
-        self.nb_perturbations = self.perturbations.shape[0]
-        self.nb_channels = self.perturbations.shape[1]
-        self.height = self.perturbations.shape[2]
-        self.width = self.perturbations.shape[3]
+        if '.npz' not in file_name:
+            file_name += '.npz'
+        data = np.load('data/' + file_name)
 
-    def create_perturbations(self, path):
-        """
-        
-        :param path: A string containing the path to the folder containing all of the
-                     original_i subfolders
-        """
-        self.perturbations = []
-        self.images = []
-        self.true_labels = []
-        self.adv_labels = []
-
-        original_i = glob(path + "*/")
-        for folder in original_i:
-            i = int(folder[-2])
-            print("Starting original_" + str(i) + " extraction...")
-            sub_folders = glob(folder + "*/")
-            for sub in sub_folders:
-                is_valid = (sub + "original.png") in glob(sub + "*") and                             len(glob(sub + "*")) > 1
-                if is_valid:
-                    orig_im = Image.open(sub + "original.png")
-                    orig_im = list(orig_im.getdata())
-                    pert = np.zeros_like(orig_im).tolist()
-                    
-                    self.perturbations.append(pert)
-                    self.images.append(orig_im)
-                    self.true_labels.append(i)
-                    self.adv_labels.append(i)
-                    
-                    for image in glob(sub + "target_*.png"):
-                        im = Image.open(image)
-                        im = np.array(im.getdata())
-                        pert = (im - orig_im).tolist()
-
-                        self.perturbations.append(pert)
-                        self.images.append(im.tolist())
-                        self.true_labels.append(i)
-                        self.adv_labels.append(int(image[-5]))
-
-        # Convert to numpy arrays
-        self.true_labels = np.array(self.true_labels)
-        self.adv_labels = np.array(self.adv_labels)
-        self.perturbations = [np.reshape(self.perturbations[i], (1,28,28))
-                              for i in range(len(self.perturbations))]
-        self.perturbations = np.stack(self.perturbations)
-        self.images = [np.reshape(self.images[i], (1,28,28))
-                              for i in range(len(self.images))]
-        self.images = np.stack(self.images)
-    
-    def save_txt_files(self, pert_file, image_file, true_label_file, adv_label_file):
-        pert_array = np.reshape(self.perturbations, (self.nb_perturbations,-1))
-        img_array = np.reshape(self.images, (self.nb_perturbations,-1))
-        # Save files
-        np.savetxt(pert_file, pert_array)
-        np.savetxt(image_file, img_array)
-        np.savetxt(true_label_file, self.true_labels)
-        np.savetxt(adv_label_file, self.adv_labels)
+        self.true_labels = data['original_labels']
+        self.adv_labels = data['target_labels']
+        self.originals = data['original_images'].transpose((0,2,3,1))
+        self.perturbations = data['perturbations'].transpose((0,2,3,1))
+        self.images = data['adversarial_images'].transpose((0,2,3,1))
     
     # Displays a specific adversarial histogram 
-    def histogram(self, orig_label, adv_label, content="pert", style="pixel", show=True, ax=None):
+    def histogram(self, orig_label=None, adv_label=None, content="pert", style="pixel", show=True, ax=None):
         perturbations = self.subset(content,orig_label,adv_label)
         if style == "pixel":
             histogram = perturbations.flatten()
@@ -89,13 +36,18 @@ class Perturbation_Stats:
             n = perturbations.shape[0]
             histogram = np.linalg.norm(perturbations.reshape((n,-1)), ord=2, axis=1)
             bins = None
+        elif style == "max":
+            n = perturbations.shape[0]
+            histogram = np.max(perturbations.reshape((n,-1)), axis=1)
+            bins = None
         if show:
             plt.hist(histogram, bins, density=True)
             title = {"pert": "Perturbations",
                      "img": "Images",
                      "pixel": "Pixel",
                      "l2": "L2 Norm",
-                     "l1": "L1 Norm"}
+                     "l1": "L1 Norm",
+                     "max": "Max"}
             plt.suptitle("Adversarial {} ({}): {} to {}".format(title[content],title[style],
                                                                 orig_label,adv_label))
             plt.show()
@@ -135,15 +87,16 @@ class Perturbation_Stats:
         if show:
             title = {"pert": "Perturbation",
                      "img": "Image",
+                     "orig": "Original",
                      "random": "Random",
                      "average": "Average"}
-            plt.imshow(image, cmap="Greys")
+            plt.imshow(image)#, cmap="Greys")
             plt.colorbar()
             plt.suptitle("Adversarial {} ({}): {} to {}".format(title[content],title[style],
                                                                 orig_label,adv_label))
             plt.show()
         else:
-            ax.imshow(image, cmap="Greys")
+            ax.imshow(image)#, cmap="Greys")
     
     # Display grid of images
     def image_grid(self, content="pert", style="average"):
@@ -160,6 +113,7 @@ class Perturbation_Stats:
         fig.text(0.04, 0.5, 'Original', va='center', rotation='vertical')
         title = {"pert": "Perturbations",
                  "img": "Images",
+                 "orig": "Original",
                  "random": "Random",
                  "average": "Average"}
         fig.suptitle("Adversarial {} ({})".format(title[content],title[style]))
@@ -183,7 +137,7 @@ class Perturbation_Stats:
             print('max: {0}'.format(mx))
             
     
-    def subset(self, content, true_label=None, adv_label=None):
+    def subset(self, content, true_label, adv_label):
         """
 
         Retrieves the perturbations with the given true label and given adversarial label.
@@ -201,7 +155,7 @@ class Perturbation_Stats:
         """
         # Declare Mask     
         if true_label == None and adv_label == None:
-            mask = numpy.ones(self.adv_label.shape, dtype=bool)
+            mask = np.ones(self.adv_labels.shape, dtype=bool)
         elif true_label == None:
             mask = self.adv_labels == adv_label 
         elif adv_label == None:
@@ -213,3 +167,5 @@ class Perturbation_Stats:
             return self.perturbations[mask,:,:,:]
         if content == "img":
             return self.images[mask,:,:,:]
+        if content == "org":
+            return self.originals[mask,:,:,:]

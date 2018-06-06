@@ -15,17 +15,17 @@ class AutoEncoder(nn.Module):
         super().__init__()
         self.dataset = dataset_name
 
-        if dataset_name = "mnist":
+        if dataset_name =="mnist":
             self.num_channels = 1
             self.size = 28
 
-        if dataset_name = "cifar":
+        if dataset_name == "cifar":
             self.num_channels = 3
             self.size = 32
         
         # Encoder specification
         self.enc_cnn_1 = nn.Conv2d(self.num_channels, 10, kernel_size=5)
-        self.enc_cnn_2 = nn.Conv2d(8, 4, kernel_size=5)
+        self.enc_cnn_2 = nn.Conv2d(10, 8, kernel_size=5)
 
         # Decoder specification
         self.dec_cnn_1 = nn.ConvTranspose2d(8, 6, kernel_size = 5)
@@ -34,6 +34,8 @@ class AutoEncoder(nn.Module):
     def forward(self, images):
         code = self.encode(images)
         out = self.decode(code)
+        out = F.sigmoid(out) # Make output between 0 and 1
+
         return out, code
     
     def encode(self, images):
@@ -46,15 +48,6 @@ class AutoEncoder(nn.Module):
         out = self.dec_cnn_2(out)
         return out
     
-
-IMAGE_SIZE = self.size**2
-IMAGE_WIDTH = IMAGE_HEIGHT = self.size
-
-# Hyperparameters
-num_epochs = 5
-batch_size = 128
-lr = 0.002
-optimizer_cls = optim.Adam
 
 # Load data
 #train_data = datasets.MNIST('~/data/mnist/', train=True , transform=transforms.ToTensor())

@@ -27,9 +27,9 @@ class Dropout_defense:
 
         if file_name is None:
             if dataset == 'cifar':
-                file_name = 'data/cifar_eps_5e-3'
+                file_name = 'cifar_eps_5e-3'
             if dataset == 'mnist':
-                file_name = 'data/mnist_eps_5e-3_norm_2_num_iters_50.npz'
+                file_name = 'mnist_eps_5e-3_norm_2_num_iters_50.npz'
         self.dataset = dataset
         self.file_name = file_name
 

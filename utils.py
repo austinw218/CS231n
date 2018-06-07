@@ -133,7 +133,6 @@ def trained_autoencoder(dataset, dropout_prob=0.1, path_to_pretrained=None):
     - dropout_prob: dropout probability
     - path_to_pretrained: path to file where parameters are stored
     '''
-
     if path_to_pretrained is None:
         path_to_pretrained = '{}_autoencoder_model'.format(dataset)
     path_to_pretrained = 'models/{}'.format(path_to_pretrained)

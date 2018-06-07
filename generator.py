@@ -292,7 +292,6 @@ class Generator:
         Arguments:
         - num_additional: the number of additional iterations to perform after the image has been fooled
         '''
-        
         start = time.time()  # Keep track of how long this takes
         num = len(images)
 
@@ -349,6 +348,7 @@ class Generator:
                 num_times_fooled.add_((predictions == target).type(torch.float))
                 required_iters.add_((predictions != target).type(torch.float))
                 dout[:,target] = (num_times_fooled < num_additional)
+                # dout[:,target] = (predictions != target)
 
                 # If every adversarial example fooled the model, we're done
                 if (predictions == target).sum() == labels.size(0):
@@ -478,6 +478,7 @@ class Generator:
         np.savez("data/" + file_name, **arrays)
         print('Took {:.2f} minutes'.format( (time.time() - start)/60.0 ))
         print('Data saved to file: {}.npz'.format(file_name))
+
 
 
 

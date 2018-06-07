@@ -27,7 +27,8 @@ class Stats:
         perturbations = self.subset(content,orig_label,adv_label)
         if style == "pixel":
             histogram = perturbations.flatten()
-            bins = np.arange(-255,256)
+            #bins = np.arange(-255,256)
+            bins = None
         elif style == "l1":
             n = perturbations.shape[0]
             histogram = np.linalg.norm(perturbations.reshape((n,-1)), ord=1, axis=1)
@@ -44,6 +45,7 @@ class Stats:
             plt.hist(histogram, bins, density=True)
             title = {"pert": "Perturbations",
                      "img": "Images",
+                     "org": "Images",
                      "pixel": "Pixel",
                      "l2": "L2 Norm",
                      "l1": "L1 Norm",
@@ -77,8 +79,12 @@ class Stats:
         plt.show()
     
     # Displays a specific adversarial image     
-    def image(self, orig_label, adv_label, content="pert", style="average", show=True, ax=None):
-        data = self.subset(content,orig_label,adv_label)
+    def image(self, dataset, orig_label, adv_label, content="pert", style="average", 
+              show=True, ax=None, title_str=None):
+        if dataset == "mnist":
+            data = self.subset(content,orig_label,adv_label)
+        if dataset == "cifar":
+            data = np.absolute(self.subset(content,orig_label,adv_label))*255
         if style == "random":
             n = data.shape[0]
             image = data[random.randint(0,n),:,:,:].squeeze()
@@ -90,43 +96,75 @@ class Stats:
                      "orig": "Original",
                      "random": "Random",
                      "average": "Average"}
+
             plt.imshow(image)#, cmap="Greys")
-            plt.colorbar()
-            plt.suptitle("Adversarial {} ({}): {} to {}".format(title[content],title[style],
-                                                                orig_label,adv_label))
+            plt.axis('off')
+            if dataset=="mnist":
+                plt.colorbar()
+            if title_str == None:
+                plt.suptitle("Adversarial {} ({}): {} to {}".format(title[content],title[style],
+                                                                     orig_label,adv_label))
+            if title_str != None:
+                plt.suptitle(title_str)
             plt.show()
         else:
             ax.imshow(image)#, cmap="Greys")
+            ax.set_xticks([])
+            ax.set_yticks([])
     
     # Display grid of images
-    def image_grid(self, content="pert", style="average"):
+    def image_grid(self, dataset, content="pert", style="average", title_str = None):
         fig, ax = plt.subplots(10, 10, sharex='col', sharey='row', figsize=(20, 20))
         for i in range(10):
             for j in range(10):
-                self.image(i, j, content, style, False, ax[i, j])
+                if i != j:
+                    self.image(dataset,i, j, content, style, False, ax[i, j])
+
                 if i == 9:
                     ax[i, j].set_xlabel("{0:d}".format(j + 1))
                 if j == 0:
                     ax[i, j].set_ylabel("{0:d}".format(i + 1))
         plt.subplots_adjust(wspace=0, hspace=0)
-        fig.text(0.5, 0.04, 'Adversarial', ha='center')
-        fig.text(0.04, 0.5, 'Original', va='center', rotation='vertical')
+        fig.text(0.5, 0.08, 'Adversarial', ha='center',fontsize=16)
+        fig.text(0.08, 0.5, 'Original', va='center', rotation='vertical',fontsize=16)
         title = {"pert": "Perturbations",
                  "img": "Images",
                  "orig": "Original",
                  "random": "Random",
                  "average": "Average"}
-        fig.suptitle("Adversarial {} ({})".format(title[content],title[style]))
+        if title_str == None:
+            fig.suptitle("Adversarial {} ({})".format(title[content],title[style]))
+        else:
+            fig.suptitle(title_str, fontsize=20)
         plt.show()
     
     
     # Print summary statistics for a specific adversarial attack      
-    def summary(self, orig_label, adv_label, content="pert", stat="all"):
+    def summary(self, orig_label=None, adv_label=None, content="pert", stat="all", style="pixel"):
         data = self.subset(content,orig_label,adv_label)
-        mean = np.mean(data)
-        std = np.std(data)
-        mn = np.min(data)
-        mx = np.max(data)
+        n = data.shape[0]
+        if style == "pixel":
+            mean = np.mean(data)
+            std = np.std(data)
+            mn = np.min(data)
+            mx = np.max(data)
+        if style == "l1":
+            mean = np.mean(np.linalg.norm(data.reshape((n,-1)), ord=1, axis=1))
+            std = np.std(np.linalg.norm(data.reshape((n,-1)), ord=1, axis=1))
+            mn = np.min(np.linalg.norm(data.reshape((n,-1)), ord=1, axis=1))
+            mx = np.max(np.linalg.norm(data.reshape((n,-1)), ord=1, axis=1))
+        if style == "l2":
+            mean = np.mean(np.linalg.norm(data.reshape((n,-1)), ord=2, axis=1))
+            std = np.std(np.linalg.norm(data.reshape((n,-1)), ord=2, axis=1))
+            mn = np.min(np.linalg.norm(data.reshape((n,-1)), ord=2, axis=1))
+            mx = np.max(np.linalg.norm(data.reshape((n,-1)), ord=2, axis=1))
+        if style == "max":
+            mean = np.mean(np.max(data.reshape((n,-1)), axis=1))
+            std = np.std(np.max(data.reshape((n,-1)), axis=1))
+            mn = np.min(np.max(data.reshape((n,-1)), axis=1))
+            mx = np.max(np.max(data.reshape((n,-1)), axis=1))
+
+
         if stat == "mean" or stat == "all":   
             print('mean: {0}'.format(mean))
         if stat == "std" or stat == "all":
@@ -135,6 +173,7 @@ class Stats:
             print('min: {0}'.format(mn))
         if stat == "max" or stat == "all":
             print('max: {0}'.format(mx))
+        
             
     
     def subset(self, content, true_label, adv_label):

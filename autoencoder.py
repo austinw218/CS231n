@@ -11,10 +11,10 @@ from   torchvision import datasets, transforms
 
 class AutoEncoder(nn.Module):
     
-    def __init__(self, dataset_name):
+    def __init__(self, dataset_name,dropout_prob):
         super().__init__()
         self.dataset = dataset_name
-
+        self.dropout = dropout_prob
         if dataset_name =="mnist":
             self.num_channels = 1
             self.size = 28
@@ -24,12 +24,22 @@ class AutoEncoder(nn.Module):
             self.size = 32
         
         # Encoder specification
-        self.enc_cnn_1 = nn.Conv2d(self.num_channels, 10, kernel_size=5)
-        self.enc_cnn_2 = nn.Conv2d(10, 8, kernel_size=5)
+        self.enc_cnn_1 = nn.Conv2d(self.num_channels, 16, kernel_size=3)
+        self.enc_cnn_2 = nn.Conv2d(16, 10, kernel_size=3)
+
+
+        # Activation/max pooling
+        self.relu = nn.ReLU()
+        self.max_pool = nn.MaxPool2d(2)
+        self.unpool = nn.MaxUnpool2d(2)
+        self.batch_norm_1 = nn.BatchNorm2d(16)
+        self.batch_norm_2 = nn.BatchNorm2d(10)
+        self.batch_norm_3 = nn.BatchNorm2d(8)
+        self.batch_norm_4 = nn.BatchNorm2d(self.num_channels)
 
         # Decoder specification
-        self.dec_cnn_1 = nn.ConvTranspose2d(8, 6, kernel_size = 5)
-        self.dec_cnn_2 = nn.ConvTranspose2d(6, self.num_channels, kernel_size = 5)
+        self.dec_cnn_1 = nn.ConvTranspose2d(10, 8, kernel_size=3)
+        self.dec_cnn_2 = nn.ConvTranspose2d(8, self.num_channels, kernel_size = 3)
         
     def forward(self, images):
         code = self.encode(images)
@@ -40,40 +50,26 @@ class AutoEncoder(nn.Module):
     
     def encode(self, images):
         code = self.enc_cnn_1(images)
+        code = self.relu(code)
+        code = F.dropout(code, self.dropout, training=self.training)
+        code = self.batch_norm_1(code)
+
         code = self.enc_cnn_2(code)
+        code = self.relu(code)
+        code = F.dropout(code, self.dropout, training=self.training)
+        code = self.batch_norm_2(code)
+
         return code
     
     def decode(self, code):
         out = self.dec_cnn_1(code)
+        out = self.relu(out)
+        out = F.dropout(out, self.dropout, training=self.training)
+        out = self.batch_norm_3(out)
+
         out = self.dec_cnn_2(out)
+        out = self.relu(out)
+        out = F.dropout(out, self.dropout, training=self.training)
+        out = self.batch_norm_4(out)
+
         return out
-    
-
-# Load data
-#train_data = datasets.MNIST('~/data/mnist/', train=True , transform=transforms.ToTensor())
-#test_data  = datasets.MNIST('~/data/mnist/', train=False, transform=transforms.ToTensor())
-#train_loader = torch.utils.data.DataLoader(train_data, shuffle=True, batch_size=batch_size, num_workers=4, drop_last=True)
-
-
-# Instantiate model
-'''
-autoencoder = AutoEncoder(code_size)
-loss_fn = nn.BCELoss()
-optimizer = optimizer_cls(autoencoder.parameters(), lr=lr)
-
-# Training loop
-for epoch in range(num_epochs):
-    print("Epoch %d" % epoch)
-    
-    for i, (images, _) in enumerate(train_loader):    # Ignore image labels
-        out, code = autoencoder(Variable(images))
-        
-        optimizer.zero_grad()
-        loss = loss_fn(out, images)
-        loss.backward()
-        optimizer.step()
-        
-    print("Loss = %.3f" % loss.data[0])
-'''
-
-

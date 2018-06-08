@@ -12,6 +12,7 @@ from PIL import Image
 import os
 import time
 import matplotlib.pyplot as plt
+import autoencoder
 
 
 class cifar(nn.Module):
@@ -123,6 +124,22 @@ def trained_model(dataset, dropout_prob=0.1, path_to_pretrained=None):
         model.load_state_dict(torch.load(path_to_pretrained)['state_dict'])
         return model
 
+
+def trained_autoencoder(dataset, dropout_prob=0.1, path_to_pretrained=None):
+    '''
+    Returns a model with pretrained parameters
+    Arguments:
+    - dataset: either 'mnist' or 'cifar'
+    - dropout_prob: dropout probability
+    - path_to_pretrained: path to file where parameters are stored
+    '''
+    if path_to_pretrained is None:
+        path_to_pretrained = '{}_autoencoder_model'.format(dataset)
+    path_to_pretrained = 'models/{}'.format(path_to_pretrained)
+
+    model = autoencoder.AutoEncoder(dataset, dropout_prob)
+    model.load_state_dict(torch.load(path_to_pretrained)['state_dict'])
+    return model
 
 
 def get_data(dataset, _train=True, _transforms=transforms.ToTensor(), _batch_size=50):
